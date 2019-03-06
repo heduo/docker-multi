@@ -1,0 +1,35 @@
+sudo: requried
+services:
+  - docker
+
+before_install:
+  - docker build -t ilheduo/react-test -f ./client/Dockerfile.dev ./client
+
+script:
+  - docker run ilheduo/react-test npm test -- --coverage # make sure the test will eventually exit
+
+after_success:
+  - docker build -t ilheduo/multi-client ./client
+  - docker build -t ilheduo/multi-nginx ./nginx
+  - docker build -t ilheduo/multi-server ./server
+  - docker build -t ilheduo/multi-worker ./worker
+  # login to the docker cli
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_ID" --password-stdin
+  # take those images and push them to docker hub ..
+  - docker push ilheduo/multi-client
+  - docker push ilheduo/multi-nginx
+  - docker push ilheduo/multi-server
+  - docker push ilheduo/multi-worker
+
+deploy:
+  provider: elasticbeanstalk
+  region: us-east-2
+  app: multi-docker
+  env: MultiDocker-env
+  bucket_name: elasticbeanstalk-us-east-2-631816110372
+  bucket_path: docker-multi
+  on:
+    branch: master
+  access_key_id: $AWS_ACCESS_KEY_ID
+  secret_access_key: $AWS_SECRET_ACCESS_KEY
+    secure: $AWS_SECRET_ACCESS_KEY
